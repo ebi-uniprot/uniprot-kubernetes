@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: solr-ss
+spec:
+  selector:
+    matchLabels:
+      app: solr-app # has to match .spec.template.metadata.labels
+  serviceName: "solr-service-hs"
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: solr-app # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: volsolr
+        persistentVolumeClaim:
+          claimName: task-solr-pv-claim
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                    - solr-app
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: solr
+        image: solr:latest
+        volumeMounts:
+        - name: volsolr
+          mountPath: /store
+        ports:
+        - name: solr-port
+          containerPort: 30080
+        env:
+          - name: SOLR_HOME
+            valueFrom:
+              configMapKeyRef:
+                name: solr-config
+                key: solrHome
+          - name: SOLR_DATA_HOME
+            valueFrom:
+              configMapKeyRef:
+                name: solr-config
+                key: solrData
+          - name: SOLR_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: solr-config
+                key: solrPort
+          - name: ZK_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: solr-config
+                key: zkHost
+          - name: POD_HOST_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: SOLR_HOST
+            value: "$(POD_HOST_NAME).solr-service-hs.default.svc.cluster.local"
+          - name: SOLR_LOGS_DIR
+            value: "/store/logs/$(POD_HOST_NAME)"
+            #valueFrom:
+            #  configMapKeyRef:
+            #    name: solr-config
+            #    key: solrLogsDir
+        livenessProbe:
+          httpGet:
+            path: /solr/
+            port: 30080
+          initialDelaySeconds: 10
+          periodSeconds: 3
+      initContainers:
+      - name: init-solr-data
+        image: busybox
+        command: ['sh', '-c', 'mkdir -p /store/solr_data && chown 8983:8983 /store/solr_data']
+        volumeMounts:
+        - name: volsolr
+          mountPath: /store
+      - name: init-solr-home
+        image: busybox
+        command: ['sh', '-c', 'mkdir -p /store/solr_home && chown 8983:8983 /store/solr_home']
+        volumeMounts:
+        - name: volsolr
+          mountPath: /store
+      - name: init-solr-logs
+        image: busybox
+        command: ['sh', '-c', 'mkdir -p /store/logs && chown 8983:8983 /store/logs']
+        volumeMounts:
+        - name: volsolr
+          mountPath: /store
+      - name: init-solr-xml
+        image: solr:latest
+        command: ['sh', '-c', '[ ! -f /store/solr_home/solr.xml ] && cp /opt/solr/server/solr/solr.xml /store/solr_home/solr.xml || true']
+        volumeMounts:
+        - name: volsolr
+          mountPath: /store
