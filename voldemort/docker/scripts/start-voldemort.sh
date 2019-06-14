@@ -1,0 +1,361 @@
+#!/usr/bin/env bash
+
+#Usage: start-voldemort.sh [OPTIONS]
+# Starts a Voldemort server based on the supplied options.
+
+
+USER=`whoami`
+HOST=`hostname -s`
+DOMAIN=`hostname -d`
+
+echo "User: $USER, Host: $HOST, Domain: $DOMAIN"
+
+SERVERS=4
+NODE_DIR="/var/lib/voldemort"
+SOCKET_PORT=30186
+ADMIN_PORT=30187
+HTTP_PORT=30185
+PARTITIONS_PER_NODE=4
+MAX_THREADS=100
+HTTP_ENABLE=true
+SOCKET_ENABLE=true
+
+BDB_WRITE_TRANSACTIONS=false
+BDB_FLUSH_TRANSACTIONS=false
+BDB_CACHE_SIZE=1G
+BDB_ONE_ENV_PER_STORE=true
+BDB_MAX_LOGFILE_SIZE=268435456
+
+ENABLE_NIO_CONNECTOR=true
+
+REQUEST_FORMAT=vp3
+STORAGE_CONFIGS="voldemort.store.bdb.BdbStorageConfiguration, voldemort.store.readonly.ReadOnlyStorageConfiguration"
+
+HEAP=2G
+LOG_LEVEL=INFO
+
+STORE_NAME="avro-uniprot"
+STORE_REPLICATION_FACTOR=1
+STORE_KEY_TYPE="string"
+STORE_VALUE_TYPE="identity"
+
+
+function print_usage() {
+echo "\
+Usage: start-voldemort.sh [OPTIONS]
+Starts a Voldemort server based on the supplied options.
+    --servers                  The number of servers in the ensemble.
+                               The default value is 4.
+
+    --node_dir                 The directory where the Voldemort will store its data and config files.
+                               The default is /var/lib/voldemort.
+
+    --socket_port              The socket port, default 30186.
+
+    --admin_port               The admin port, default 30187.
+
+    --http.port                The http port, default 30185.
+
+    --partitions_per_node      The number of partitions on each node, default 4.
+
+    --max_threads              The max of threads, default 100.
+
+    --http_enable              To enale http port, default true.
+
+    --socket_enable            To enable socket port, default true.
+
+    --bdb_write_transactions   BDB write transactions, default false.
+
+    --bdb_flush_transactions   BDB flush transactions, default false.
+
+    --bdb_cache_size           BDB cache size, default 2G.
+
+    --bdb_one_env_per_store    BDB one env per store, default true.
+
+    --bdb_max_logfile_size     BDB max log file size, default 268435456.
+
+    --enable_nio_connector     To enable NIO connector, default true.
+
+    --request_format           Request format, default vp3.
+
+    --storage_configs          Storage configs, default voldemort.store.bdb.BdbStorageConfiguration,
+                               voldemort.store.readonly.ReadOnlyStorageConfiguration.
+
+    --store_name               Voldemort store name, default avro_uniprot.
+
+    --store_replication-factor Replication factor, default 2.
+
+    --heap                     The maximum amount of heap to use. The format is the
+                               same as that used for the Xmx and Xms parameters to the
+                               JVM. e.g. --heap=2G. The default is 2G.
+
+    --log_level                The log level for the zookeeeper server. Either FATAL,
+                               ERROR, WARN, INFO, DEBUG. The default is INFO.
+"
+}
+
+function create_data_dirs() {
+    echo "Create Voldemort data and config directories." >&2
+
+    if [ ! -d $NODE_DIR_DIR  ]; then
+        mkdir -p $NODE_DIR
+        chown -R $USER:$USER $NODE_DIR
+    fi
+    if [ ! -d $DATA_DIR ]; then
+        mkdir -p $DATA_DIR
+        chown -R $USER:$USER $DATA_DIR
+    fi
+    if [ ! -d $CONF_DIR  ]; then
+        mkdir -p $CONF_DIR
+        chown -R $USER:$USER $CONF_DIR
+    fi
+    if [ ! -d $STORE_DIR  ]; then
+        mkdir -p $STORE_DIR
+        chown -R $USER:$USER $STORE_DIR
+    fi
+}
+
+function create_cluster_xml() {
+
+    rm -f $CLUSTER_XML
+
+    echo "Create Voldemort cluster xml file: $CLUSTER_XML" >&2
+    echo "<cluster>" >> $CLUSTER_XML
+    echo "   <name>build</name>" >> $CLUSTER_XML
+    for (( i=0; i<$SERVERS; i++ ))
+    do
+        echo "   <server>" >> $CLUSTER_XML
+        echo "      <id>$i</id>" >> $CLUSTER_XML
+        echo "      <host>vd-$i.$DOMAIN</host>" >> $CLUSTER_XML
+        #echo "      <host>193.62.55.83</host>" >> $CLUSTER_XML
+        echo "      <http-port>30185</http-port>" >> $CLUSTER_XML
+        echo "      <socket-port>30186</socket-port>" >> $CLUSTER_XML
+        echo "      <admin-port>30187</admin-port>" >> $CLUSTER_XML
+        echo "      <partitions>" >> $CLUSTER_XML
+        partition_numbers=()
+        for (( j=0; j<$PARTITIONS_PER_NODE; j++ ))
+        do
+           partition_numbers+=($((i+j*$PARTITIONS_PER_NODE)))
+        done
+        partitions=$(printf ", %s" "${partition_numbers[@]}")
+        partitions=${partitions:2}
+        echo "          $partitions" >> $CLUSTER_XML
+        echo "      </partitions>" >> $CLUSTER_XML
+        echo "   </server>" >> $CLUSTER_XML
+    done
+
+    echo "</cluster>" >> $CLUSTER_XML
+
+    ls -l $CLUSTER_XML >&2
+    cat $CLUSTER_XML >&2
+}
+
+function create_server_properties() {
+
+    rm -f $SERVER_PROPERTIES
+
+    echo " Create Voldemort server properties file: $SERVER_PROPERTIES" >&2
+
+    echo "#This file was autogenerated DO NOT EDIT" >> $SERVER_PROPERTIES
+    echo "node.id=$MY_ID" >> $SERVER_PROPERTIES
+    echo "max.threads=$MAX_THREADS" >> $SERVER_PROPERTIES
+    echo "http.enable=$HTTP_ENABLE" >> $SERVER_PROPERTIES
+    echo "socket.enable=$SOCKET_ENABLE" >> $SERVER_PROPERTIES
+    echo "bdb.write.transactions=$BDB_WRITE_TRANSACTIONS" >> $SERVER_PROPERTIES
+    echo "bdb.flush.transactions=$BDB_FLUSH_TRANSACTIONS" >> $SERVER_PROPERTIES
+    echo "bdb.cache.size=$BDB_CACHE_SIZE" >> $SERVER_PROPERTIES
+    echo "bdb.max.logfile.size=$BDB_MAX_LOGFILE_SIZE" >> $SERVER_PROPERTIES
+    echo "bdb.one.env.per.store=$BDB_ONE_ENV_PER_STORE" >> $SERVER_PROPERTIES
+    echo "enable.nio.connector=$ENABLE_NIO_CONNECTOR" >> $SERVER_PROPERTIES
+    echo "request.format=$REQUEST_FORMAT" >> $SERVER_PROPERTIES
+    echo "storage.configs=$STORAGE_CONFIGS" >> $SERVER_PROPERTIES
+
+    ls -l $SERVER_PROPERTIES >&2
+    cat $SERVER_PROPERTIES >&2
+}
+
+function create_store_file() {
+
+     rm -rf $STORE_FILE
+
+     echo "Creating Voldemort store file: $STORE_FILE" >&2
+
+     echo "<store>" >> $STORE_FILE
+     echo "   <name>$STORE_NAME</name>" >> $STORE_FILE
+     echo "   <persistence>bdb</persistence>" >> $STORE_FILE
+     echo "   <description>$STORE_NAME store</description>" >> $STORE_FILE
+     echo "   <owners>harry@hogwarts.edu, hermoine@hogwarts.edu</owners>" >> $STORE_FILE
+     echo "   <routing-strategy>consistent-routing</routing-strategy>" >> $STORE_FILE
+     echo "   <routing>client</routing>" >> $STORE_FILE
+     echo "   <replication-factor>$STORE_REPLICATION_FACTOR</replication-factor>" >> $STORE_FILE
+     echo "   <preferred-reads>1</preferred-reads>" >> $STORE_FILE
+     echo "   <required-reads>1</required-reads>" >> $STORE_FILE
+     echo "   <preferred-writes>1</preferred-writes>" >> $STORE_FILE
+     echo "   <required-writes>1</required-writes>" >> $STORE_FILE
+     echo "   <hinted-handoff-strategy>consistent-handoff</hinted-handoff-strategy>" >> $STORE_FILE
+     echo "   <key-serializer><type>$STORE_KEY_TYPE</type></key-serializer>" >> $STORE_FILE
+     echo "   <value-serializer>" >> $STORE_FILE
+
+     #echo "   <type>avro-specific</type>" >> $STORE_FILE
+     #echo "   <schema-info version=\"0\">" >> $STORE_FILE
+     #echo "   java=uk.ac.ebi.uniprot.services.data.serializer.model.entry.EntryObject" >> $STORE_FILE
+     #echo "   </schema-info>" >> $STORE_FILE
+
+     echo "        <type>$STORE_VALUE_TYPE</type>" >> $STORE_FILE
+     echo "        <compression>" >> $STORE_FILE
+     echo "             <type>gzip</type>" >> $STORE_FILE
+     echo "        </compression>" >> $STORE_FILE
+
+     echo "    </value-serializer>" >> $STORE_FILE
+     echo "</store>" >> $STORE_FILE
+
+     ls -l  $STORE_FILE >&2
+     cat  $STORE_FILE >&2
+}
+
+
+function create_jvm_props() {
+    rm -f $JAVA_ENV_FILE
+    echo "JVMFLAGS=\"-Xmx$HEAP -Xms$HEAP\"" >> $JAVA_ENV_FILE
+}
+
+function create_log_props() {
+
+    rm -f $LOGGER_PROPS_FILE
+
+    echo "Creating Voldemort log4j configuration: $LOGGER_PROPS_FILE" >&2
+
+    echo "voldemort.root.logger=CONSOLE" >> $LOGGER_PROPS_FILE
+    echo "voldemort.console.threshold=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+
+    echo "log4j.rootLogger=\${voldemort.root.logger}" >> $LOGGER_PROPS_FILE
+    echo "log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender" >> $LOGGER_PROPS_FILE
+    echo "log4j.appender.CONSOLE.Threshold=\${voldemort.console.threshold}" >> $LOGGER_PROPS_FILE
+    echo "log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout" >> $LOGGER_PROPS_FILE
+    echo "log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n" >> $LOGGER_PROPS_FILE
+
+    echo "log4j.logger.voldemort=\${voldemort.console.threshold}" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.krati=WARN" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.org.mortbay.log=WARN" >> $LOGGER_PROPS_FILE
+
+    cat $LOGGER_PROPS_FILE >&2
+}
+
+optspec=":hv-:"
+while getopts "$optspec" optchar; do
+
+    case "${optchar}" in
+        -)
+            case "${OPTARG}" in
+                servers=*)
+                    SERVERS=${OPTARG##*=}
+                    ;;
+                data_dir=*)
+                    DATA_DIR=${OPTARG##*=}
+                    ;;
+                socket_port=*)
+                    SOCKET_PORT=${OPTARG##*=}
+                    ;;
+                admin_port=*)
+                    ADMIN_PORT=${OPTARG##*=}
+                    ;;
+                http_port=*)
+                    HTTP_PORT=${OPTARG##*=}
+                    ;;
+                partitions_per_node=*)
+                    PARTITIONS_PER_NODE=${OPTARG##*=}
+                    ;;
+                max_threads=*)
+                    MAX_THREADS=${OPTARG##*=}
+                    ;;
+                http_enable=*)
+                    HTTP_ENABLE=${OPTARG##*=}
+                    ;;
+                socket_enable=*)
+                    SOCKET_ENABLE=${OPTARG##*=}
+                    ;;
+                bdb_write_transactions=*)
+                    BDB_WRITE_TRANSACTIONS=${OPTARG##*=}
+                    ;;
+                bdb_flush_transactions=*)
+                    BDB_FLUSH_TRANSACTIONS=${OPTARG##*=}
+                    ;;
+                bdb_cache_size=*)
+                    BDB_CACHE_SIZE=${OPTARG##*=}
+                    ;;
+                bdb_one_env_per_store=*)
+                    BDB_ONE_ENV_PER_STORE=${OPTARG##*=}
+                    ;;
+                bdb_max_logfile_size=*)
+                    BDB_MAX_LOGFILE_SIZE=${OPTARG##*=}
+                    ;;
+                enable_nio_connector=*)
+                    ENABLE_NIO_CONNECTOR=${OPTARG##*=}
+                    ;;
+                request_format=*)
+                    REQUEST_FORMAT=${OPTARG##*=}
+                    ;;
+                storage_configs=*)
+                    STORAGE_CONFIGS=${OPTARG##*=}
+                    ;;
+                store_name=*)
+                    STORE_NAME=${OPTARG##*=}
+                    ;;
+                store_replication_factor=*)
+                    STORE_REPLICATION_FACTOR=${OPTARG##*=}
+                    ;;
+                heap=*)
+                    HEAP=${OPTARG##*=}
+                    ;;
+                log_level=*)
+                    LOG_LEVEL=${OPTARG##*=}
+                    ;;
+                *)
+                    echo "Unknown option --${OPTARG}" >&2
+                    exit 1
+                    ;;
+            esac;;
+        h)
+            print_usage
+            exit
+            ;;
+        v)
+            echo "Parsing option: '-${optchar}'" >&2
+            ;;
+        *)
+            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+                echo "Non-option argument: '-${OPTARG}'" >&2
+            fi
+            ;;
+    esac
+done
+
+
+DATA_DIR="$NODE_DIR/data"
+CONF_DIR="$NODE_DIR/config"
+SERVER_PROPERTIES="$CONF_DIR/server.properties"
+CLUSTER_XML="$CONF_DIR/cluster.xml"
+LOGGER_PROPS_FILE="$CONF_DIR/log4j.properties"
+JAVA_ENV_FILE="$CONF_DIR/java.env"
+STORE_DIR="$CONF_DIR/STORES"
+STORE_FILE="$STORE_DIR/$STORE_NAME"
+
+LOG_FILE="${NODE_DIR}/${HOST}.log"
+
+
+if [[ $HOST =~ (.*)-([0-9]+)$ ]]; then
+    NAME=${BASH_REMATCH[1]}
+    ORD=${BASH_REMATCH[2]}
+else
+    echo "Fialed to parse name and ordinal of Pod"
+    exit 1
+fi
+
+MY_ID=$((ORD+0))
+
+create_data_dirs && create_server_properties && create_cluster_xml && create_store_file && create_jvm_props && create_log_props
+ls -l /var/lib/voldemort >&2
+ls -l /var/lib/voldemort/config >&2
+
+export ENV VOLD_OPTS="-Xmx3G -server -Dcom.sun.management.jmxremote"
+exec /opt/voldemort/bin/voldemort-server.sh $NODE_DIR >&2

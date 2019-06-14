@@ -1,0 +1,159 @@
+# each replicate has their own pv and pvc
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: vd-hs
+  labels:
+    app: vd
+spec:
+  ports:
+  - port: 30186
+    name: socket
+  - port: 30185
+    name: http
+  - port: 30187
+    name: admin
+  clusterIP: None
+  selector:
+    app: vd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vd-cs
+spec:
+  ports:
+    - port: 30186
+      targetPort: 30186
+      nodePort: 30186
+      protocol: TCP
+  selector:
+    app: vd
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vd-cs-admin
+spec:
+  ports:
+    - port: 30187
+      targetPort: 30187
+      nodePort: 30187
+      protocol: TCP
+  selector:
+    app: vd
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vd-cs-http
+spec:
+  ports:
+    - port: 30185
+      targetPort: 30185
+      nodePort: 30185
+      protocol: TCP
+  selector:
+    app: vd
+  type: NodePort
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: vd-pdb
+spec:
+  selector:
+    matchLabels:
+      app: vd
+  maxUnavailable: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vd
+spec:
+  selector:
+    matchLabels:
+      app: vd
+  serviceName: vd-hs
+  replicas: 4
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: vd
+    spec:
+      volumes:
+        - name: miniodata
+          persistentVolumeClaim:
+            claimName: minio-pv-claim
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - vd
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: kubernetes-voldemort
+          imagePullPolicy: Always
+          image: "guoyingqi/voldemort"
+          resources:
+            requests:
+              memory: "5Gi"
+              cpu: "0.5"
+          ports:
+            - containerPort: 30186
+              name: socket
+            - containerPort: 30185
+              name: http
+            - containerPort: 30187
+              name: admin
+          command:
+            - sh
+            - -c
+            - "start-voldemort.sh \
+          --servers=4 \
+          --log_level=INFO"
+          #readinessProbe:
+          #  exec:
+          #    command:
+          #      - sh
+          #      - -c
+          #      - "voldemort-ready.sh 6666"
+          #  initialDelaySeconds: 10
+          #  timeoutSeconds: 5
+            #livenessProbe:
+            #  exec:
+            #    command:
+            #      - sh
+            #      - -c
+            #      - "voldemort-ready 6666"
+            #  initialDelaySeconds: 10
+            #  timeoutSeconds: 5
+          volumeMounts:
+            - name: vddata
+              mountPath: /var/lib/voldemort
+            - name: miniodata
+              mountPath: /var/lib/voldemort/minio
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+  volumeClaimTemplates:
+    - metadata:
+        name: vddata
+      spec:
+        storageClassName: nfs-client
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 30Gi
