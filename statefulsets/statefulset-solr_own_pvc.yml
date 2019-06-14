@@ -1,13 +1,13 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: solr-ss
+  name: solr
 spec:
   selector:
     matchLabels:
       app: solr-app # has to match .spec.template.metadata.labels
   serviceName: "solr-service-hs"
-  replicas: 3
+  replicas: 5
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: Parallel
@@ -16,6 +16,10 @@ spec:
       labels:
         app: solr-app # has to match .spec.selector.matchLabels
     spec:
+      volumes:
+        - name: miniodata
+          persistentVolumeClaim:
+            claimName: minio-pv-claim
       terminationGracePeriodSeconds: 60
       affinity:
         podAntiAffinity:
@@ -33,6 +37,8 @@ spec:
           volumeMounts:
             - name: volsolr
               mountPath: /store
+            - name: miniodata
+              mountPath: /store/minio
           ports:
             - name: solr-port
               containerPort: 30080

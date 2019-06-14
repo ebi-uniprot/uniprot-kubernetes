@@ -14,7 +14,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: task-solr-pv-claim
+            claimName: minio-pv-claim
       containers:
         - name: minio
           volumeMounts:
