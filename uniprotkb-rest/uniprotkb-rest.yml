@@ -83,7 +83,7 @@ spec:
             - sh
             - -c
             - "start-restful.sh \
-          --voldemort=tcp://vd-0.vd-hs.default.svc.cluster.local:30186 \
+          --voldemort=tcp://vd-0.vd-hs.default.svc.cluster.local:2186 \
           --zkhost=zk-0.zk-hs.default.svc.cluster.local:2181,zk-1.zk-hs.default.svc.cluster.local:2181,zk-2.zk-hs.default.svc.cluster.local:2181 \
           --log_level=INFO"
  #         readinessProbe:

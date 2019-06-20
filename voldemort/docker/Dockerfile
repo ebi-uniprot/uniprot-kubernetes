@@ -1,7 +1,6 @@
 FROM ubuntu:16.04
 
 ENV VOLDEMORT_USER=voldemort \
-VOLDEMORT_DATA_DIR=/var/lib/voldemort/ \
 JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 
 ARG VOLDEMORT_DIST=release-1.10.26-cutoff
@@ -50,9 +49,9 @@ RUN set -x \
 	&& useradd $VOLDEMORT_USER \
     && [ `id -u $VOLDEMORT_USER` -eq 1000 ] \
     && [ `id -g $VOLDEMORT_USER` -eq 1000 ] \
-    && mkdir -p $VOLDEMORT_DATA_DIR /tmp/voldemort /usr/etc/ /home/voldemort\
-	&& chown -R "$VOLDEMORT_USER:$VOLDEMORT_USER" /opt/$VOLDEMORT_DIST_DIR $VOLDEMORT_DATA_DIR /opt/voldemort /tmp/voldemort /home/voldemort \
+    && mkdir -p /tmp/voldemort /usr/etc/ /home/voldemort \
+	&& chown -R "$VOLDEMORT_USER:$VOLDEMORT_USER" /opt/$VOLDEMORT_DIST_DIR /opt/voldemort /tmp/voldemort /home/voldemort \
 	&& ln -s /opt/voldemort/conf/ /usr/etc/voldemort \
 	&& ln -s /opt/voldemort/bin/* /usr/bin
 
-EXPOSE 30186 30187 30185
+EXPOSE 2186 2187 2185

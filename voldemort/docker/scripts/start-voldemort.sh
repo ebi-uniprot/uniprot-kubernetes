@@ -12,9 +12,9 @@ echo "User: $USER, Host: $HOST, Domain: $DOMAIN"
 
 SERVERS=4
 NODE_DIR="/var/lib/voldemort"
-SOCKET_PORT=30186
-ADMIN_PORT=30187
-HTTP_PORT=30185
+SOCKET_PORT=2186
+ADMIN_PORT=2187
+HTTP_PORT=2185
 PARTITIONS_PER_NODE=4
 MAX_THREADS=100
 HTTP_ENABLE=true
@@ -50,11 +50,11 @@ Starts a Voldemort server based on the supplied options.
     --node_dir                 The directory where the Voldemort will store its data and config files.
                                The default is /var/lib/voldemort.
 
-    --socket_port              The socket port, default 30186.
+    --socket_port              The socket port, default 2186.
 
-    --admin_port               The admin port, default 30187.
+    --admin_port               The admin port, default 2187.
 
-    --http.port                The http port, default 30185.
+    --http.port                The http port, default 2185.
 
     --partitions_per_node      The number of partitions on each node, default 4.
 
@@ -128,9 +128,9 @@ function create_cluster_xml() {
         echo "      <id>$i</id>" >> $CLUSTER_XML
         echo "      <host>vd-$i.$DOMAIN</host>" >> $CLUSTER_XML
         #echo "      <host>193.62.55.83</host>" >> $CLUSTER_XML
-        echo "      <http-port>30185</http-port>" >> $CLUSTER_XML
-        echo "      <socket-port>30186</socket-port>" >> $CLUSTER_XML
-        echo "      <admin-port>30187</admin-port>" >> $CLUSTER_XML
+        echo "      <http-port>$HTTP_PORT</http-port>" >> $CLUSTER_XML
+        echo "      <socket-port>$SOCKET_PORT</socket-port>" >> $CLUSTER_XML
+        echo "      <admin-port>$ADMIN_PORT</admin-port>" >> $CLUSTER_XML
         echo "      <partitions>" >> $CLUSTER_XML
         partition_numbers=()
         for (( j=0; j<$PARTITIONS_PER_NODE; j++ ))
@@ -211,12 +211,6 @@ function create_store_file() {
 
      ls -l  $STORE_FILE >&2
      cat  $STORE_FILE >&2
-}
-
-
-function create_jvm_props() {
-    rm -f $JAVA_ENV_FILE
-    echo "JVMFLAGS=\"-Xmx$HEAP -Xms$HEAP\"" >> $JAVA_ENV_FILE
 }
 
 function create_log_props() {
@@ -336,12 +330,10 @@ CONF_DIR="$NODE_DIR/config"
 SERVER_PROPERTIES="$CONF_DIR/server.properties"
 CLUSTER_XML="$CONF_DIR/cluster.xml"
 LOGGER_PROPS_FILE="$CONF_DIR/log4j.properties"
-JAVA_ENV_FILE="$CONF_DIR/java.env"
 STORE_DIR="$CONF_DIR/STORES"
 STORE_FILE="$STORE_DIR/$STORE_NAME"
 
 LOG_FILE="${NODE_DIR}/${HOST}.log"
-
 
 if [[ $HOST =~ (.*)-([0-9]+)$ ]]; then
     NAME=${BASH_REMATCH[1]}
@@ -353,9 +345,9 @@ fi
 
 MY_ID=$((ORD+0))
 
-create_data_dirs && create_server_properties && create_cluster_xml && create_store_file && create_jvm_props && create_log_props
+create_data_dirs && create_server_properties && create_cluster_xml && create_store_file && create_log_props
 ls -l /var/lib/voldemort >&2
 ls -l /var/lib/voldemort/config >&2
 
-export ENV VOLD_OPTS="-Xmx3G -server -Dcom.sun.management.jmxremote"
-exec /opt/voldemort/bin/voldemort-server.sh $NODE_DIR >&2
+export ENV VOLD_OPTS="-Xmx$HEAP -Xms$HEAP -server -Dcom.sun.management.jmxremote"
+exec /opt/voldemort/bin/voldemort-server.sh $NODE_DIR > $LOG_FILE 2>&1

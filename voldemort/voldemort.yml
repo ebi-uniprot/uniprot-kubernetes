@@ -8,11 +8,11 @@ metadata:
     app: vd
 spec:
   ports:
-  - port: 30186
+  - port: 2186
     name: socket
-  - port: 30185
+  - port: 2185
     name: http
-  - port: 30187
+  - port: 2187
     name: admin
   clusterIP: None
   selector:
@@ -25,7 +25,7 @@ metadata:
 spec:
   ports:
     - port: 30186
-      targetPort: 30186
+      targetPort: 2186
       nodePort: 30186
       protocol: TCP
   selector:
@@ -39,7 +39,7 @@ metadata:
 spec:
   ports:
     - port: 30187
-      targetPort: 30187
+      targetPort: 2187
       nodePort: 30187
       protocol: TCP
   selector:
@@ -53,7 +53,7 @@ metadata:
 spec:
   ports:
     - port: 30185
-      targetPort: 30185
+      targetPort: 2185
       nodePort: 30185
       protocol: TCP
   selector:
@@ -111,11 +111,11 @@ spec:
               memory: "5Gi"
               cpu: "0.5"
           ports:
-            - containerPort: 30186
+            - containerPort: 2186
               name: socket
-            - containerPort: 30185
+            - containerPort: 2185
               name: http
-            - containerPort: 30187
+            - containerPort: 2187
               name: admin
           command:
             - sh
