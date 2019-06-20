@@ -3,7 +3,6 @@
 #Usage: start-restful.sh [OPTIONS]
 # Starts a Restful server based on the supplied options.
 
-
 USER=`whoami`
 HOST=`hostname -s`
 DOMAIN=`hostname -d`
@@ -11,7 +10,6 @@ DOMAIN=`hostname -d`
 echo "User: $USER, Host: $HOST, Domain: $DOMAIN"
 
 RESTFUL_DIR="/var/lib/restful"
-
 
 HEAP=4G
 LOG_LEVEL=INFO
@@ -31,7 +29,6 @@ SERVER_TOMCAT_MAX_CONNECTIONS=20000
 SPRING_JACKSON_DEFAYKT_PROPERTY_INCLUSION="non_null"
 SPRING_MVC_TRROW_EXCEPTION_IF_NO_HABDKER_FOUND=true
 SPRING_RESOURCE_ADD_MAPPINGS=true
-
 
 SPRING_DATA_SOLR_ZKHOST=""
 SPRING_DATA_SOLR_CONNECTION_TIMEOUT=20000
@@ -223,6 +220,7 @@ LOGGER_PROPS_FILE="$SPRING_CONFIG_LOCATION/logback.xml"
 
 create_data_dirs && creaate_application_properties  && create_log_props
 ls -l $RESTFUL_DIR >&2
+
 cd $RESTFUL_DIR >&2
 
 RUN_CMD="java \
@@ -231,6 +229,7 @@ RUN_CMD="java \
 -Dserver.tomcat.basedir=$SERVER_TOMCAT_BASEDIR \
 -Dlogging.config=$SPRING_CONFIG_LOCATION/logback.xml \
 -Dlogging.path=$LOGGING_PATH \
+-Dserver.tomcat.accesslog.directory=$LOGGING_PATH \
 -jar /restful/lib/uniprotkb-rest-exec.jar"
 
 echo $RUN_CMD >&2
