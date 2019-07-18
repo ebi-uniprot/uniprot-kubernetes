@@ -9,7 +9,7 @@ RUN set -x \
     && apt-get install -y openjdk-8-jre
 
 #Copy configuration generator script to bin
-COPY scripts $RESTFIL_DIR/bin/
+COPY scripts $RESTFUL_DIR/bin/
 COPY lib $RESTFUL_DIR/lib
 
 # Create a user for the restful process and configure file system ownership
