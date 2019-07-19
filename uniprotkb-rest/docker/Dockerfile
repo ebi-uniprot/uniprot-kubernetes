@@ -21,5 +21,3 @@ RUN set -x \
 	&& chown -R "$RESTFUL_USER:$RESTFUL_USER" $RESTFUL_DIR \
 	&& ln -s $RESTFUL_DIR/lib/uniprotkb-rest-*.jar  $RESTFUL_DIR/lib/uniprotkb-rest-exec.jar \
 	&& ln -s $RESTFUL_DIR/bin/* /usr/bin
-
-EXPOSE 8090
