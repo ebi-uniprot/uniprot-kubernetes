@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: support-data-hs
+  labels:
+    app: support-data
+spec:
+  ports:
+    - port: 8095
+      name: http
+  clusterIP: None
+  selector:
+    app: support-data
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: support-data-rest
+spec:
+  ports:
+    - port: 30295
+      targetPort: 8095
+      nodePort: 30295
+      protocol: TCP
+  selector:
+    app: support-data
+  type: NodePort
+
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: support-data-pdb
+spec:
+  selector:
+    matchLabels:
+      app: support-data
+  maxUnavailable: 1
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: support-data
+spec:
+  selector:
+    matchLabels:
+      app: support-data
+  serviceName: support-data-hs
+  replicas: 2
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  template:
+    metadata:
+      labels:
+        app: support-data
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - support-data
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: kubernetes-support-data-rest
+          imagePullPolicy: Always
+          image: "guoyingqi/support-data"
+          resources:
+            requests:
+              memory: "5Gi"
+              cpu: "0.5"
+          ports:
+            - containerPort: 8095
+              name: http
+          command:
+            - sh
+            - -c
+            - "start-restful.sh \
+              --zkhost=zk-0.zk-hs.default.svc.cluster.local:2181,zk-1.zk-hs.default.svc.cluster.local:2181,zk-2.zk-hs.default.svc.cluster.local:2181 \
+               --log_level=INFO"
+ #         readinessProbe:
+ #           httpGet:
+ #               path: /uniprot/api
+ #              port: 8095
+ #           initialDelaySeconds: 10
+ #           timeoutSeconds: 5
+ #         livenessProbe:
+ #             httpGet:
+ #               path: /uniprot/api
+ #               port: 8095
+ #             initialDelaySeconds: 10
+ #             periodSeconds: 3
+          volumeMounts:
+            - name: support-rest-data
+              mountPath: /var/lib/restful
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+  volumeClaimTemplates:
+    - metadata:
+        name: support-rest-data
+      spec:
+        storageClassName: nfs-client
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 5Gi
