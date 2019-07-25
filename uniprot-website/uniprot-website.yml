@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-website
+  name: uniprot-website
 spec:
   ports:
     - port: 30280
@@ -9,34 +9,34 @@ spec:
       nodePort: 30280
       protocol: TCP
   selector:
-    app: nginx-website
+    app: uniprot-website
   type: NodePort
 
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: nginx-website
+  name: uniprot-website
 spec:
-  serviceName: "nginx-website"
+  serviceName: "uniprot-website"
   replicas: 1
   selector:
     matchLabels:
-      app: nginx-website
+      app: uniprot-website
   template:
     metadata:
       labels:
-        app: nginx-website
+        app: uniprot-website
     spec:
       containers:
-        - name: nginx-website
+        - name: uniprot-website
           image: guoyingqi/uniprot-website
           ports:
             - containerPort: 80
               name: web
           volumeMounts:
             - name: uniprot-website
-              mountPath: /var/log/uniprot-website
+              mountPath: /var/lib/uniprot-website
   volumeClaimTemplates:
     - metadata:
         name: uniprot-website
