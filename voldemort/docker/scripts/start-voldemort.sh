@@ -3,13 +3,13 @@
 #Usage: start-voldemort.sh [OPTIONS]
 # Starts a Voldemort server based on the supplied options.
 
-
 USER=`whoami`
 HOST=`hostname -s`
 DOMAIN=`hostname -d`
 
 echo "User: $USER, Host: $HOST, Domain: $DOMAIN"
 
+# default valures for config files
 SERVERS=4
 NODE_DIR="/var/lib/voldemort"
 SOCKET_PORT=2186

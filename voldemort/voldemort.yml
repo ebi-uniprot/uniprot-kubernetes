@@ -121,8 +121,8 @@ spec:
             - sh
             - -c
             - "start-voldemort.sh \
-          --servers=4 \
-          --log_level=INFO"
+               --servers=4 \
+               --log_level=INFO"
           #readinessProbe:
           #  exec:
           #    command:
@@ -131,14 +131,14 @@ spec:
           #      - "voldemort-ready.sh 6666"
           #  initialDelaySeconds: 10
           #  timeoutSeconds: 5
-            #livenessProbe:
-            #  exec:
-            #    command:
-            #      - sh
-            #      - -c
-            #      - "voldemort-ready 6666"
-            #  initialDelaySeconds: 10
-            #  timeoutSeconds: 5
+          #livenessProbe:
+          #  exec:
+          #    command:
+          #      - sh
+          #      - -c
+          #      - "voldemort-ready 6666"
+          #  initialDelaySeconds: 10
+          #  timeoutSeconds: 5
           volumeMounts:
             - name: vddata
               mountPath: /var/lib/voldemort
