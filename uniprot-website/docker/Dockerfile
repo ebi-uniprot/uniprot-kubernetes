@@ -3,12 +3,11 @@ FROM nginx
 ARG GIT_REPO_DIR=/opt/uniprot-website
 
 # update and install git and curl
+# install NVM, NODE and NPM and build website files
+# remove git and curl command
 RUN set -x \
     && apt-get update \
-    && apt-get install -y git curl
-
-# install NVM, NPM and build website files
-RUN set -x \
+    && apt-get install -y git curl \
     && curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash \
     && export NVM_DIR="$HOME/.nvm" \
     && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
@@ -24,8 +23,5 @@ RUN set -x \
     && mv $GIT_REPO_DIR/build/ /usr/share/nginx/html/uniprot-website \
     && rm -rf $GIT_REPO_DIR \
     && rm -rf $HOME/.nvm \
-    && rm -rf $HOME/.npm
-
-# remove git and curl command
-RUN set -x \
+    && rm -rf $HOME/.npm \
     && apt-get autoremove -y git curl
