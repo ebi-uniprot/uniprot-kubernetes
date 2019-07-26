@@ -32,6 +32,7 @@ COPY scripts /opt/voldemort/bin/
 
 # Create a user for the voldemort process and configure file system ownership
 # for nessecary directories and symlink the distribution as a user executable
+# Note: changing the ownership of the files will increase the image size
 RUN set -x \
 	&& useradd $VOLDEMORT_USER \
     && [ `id -u $VOLDEMORT_USER` -eq 1000 ] \
