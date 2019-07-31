@@ -104,22 +104,16 @@ spec:
             - "start-voldemort.sh \
                --servers=4 \
                --log_level=INFO"
-          #readinessProbe:
-          #  exec:
-          #    command:
-          #      - sh
-          #      - -c
-          #      - "voldemort-ready.sh 6666"
-          #  initialDelaySeconds: 10
-          #  timeoutSeconds: 5
-          #livenessProbe:
-          #  exec:
-          #    command:
-          #      - sh
-          #      - -c
-          #      - "voldemort-ready 6666"
-          #  initialDelaySeconds: 10
-          #  timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: 2185
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+              tcpSocket:
+                port: 2185
+              initialDelaySeconds: 15
+              periodSeconds: 20
           volumeMounts:
             - name: vddata
               mountPath: /var/lib/voldemort
