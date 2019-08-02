@@ -1,4 +1,3 @@
-
 #!/bin/bash
  
 bucket=$1
@@ -6,10 +5,9 @@ file=$2
  
 # usage: ./minio-upload my-bucket my-file.zip
  
-host="[FIP]"
-nodeport="33977"
-minio_key="madeupAccessKey"
-minio_secret="mySuperSecret"
+host="193.62.55.83:30099"
+minio_key=""
+minio_secret=""
  
 content_type="application/octet-stream"
 resource="/${bucket}/${file}"

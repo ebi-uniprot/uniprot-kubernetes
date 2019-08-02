@@ -1,9 +1,9 @@
-kind: PersistentVolumeClaim
 apiVersion: v1
+kind: PersistentVolumeClaim
 metadata:
   name: minio-pv-claim
 spec:
-  storageClassName: nfs-client #manual
+  storageClassName: nfs-client
   accessModes:
     - ReadWriteMany
   resources:

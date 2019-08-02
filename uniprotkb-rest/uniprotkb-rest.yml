@@ -1,23 +1,22 @@
-
 apiVersion: v1
 kind: Service
 metadata:
-  name: uniprotkb-hs
+  name: kb-rest-hs
   labels:
-    app: uniprotkb
+    app: kb-rest
 spec:
   ports:
     - port: 8090
       name: http
   clusterIP: None
   selector:
-    app: uniprotkb
----
+    app: kb-rest
 
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: uniprotkb-rest-http
+  name: kb-rest-http
 spec:
   ports:
     - port: 30299
@@ -25,30 +24,30 @@ spec:
       nodePort: 30299
       protocol: TCP
   selector:
-    app: uniprotkb
+    app: kb-rest
   type: NodePort
 
 ---
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
-  name: uniprotkb-pdb
+  name: kb-rest-pdb
 spec:
   selector:
     matchLabels:
-      app: uniprotkb
+      app: kb-rest
   maxUnavailable: 1
 
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: uniprotkb
+  name: kb-rest
 spec:
   selector:
     matchLabels:
-      app: uniprotkb
-  serviceName: uniprotkb-hs
+      app: kb-rest
+  serviceName: kb-rest-hs
   replicas: 2
   updateStrategy:
     type: RollingUpdate
@@ -56,7 +55,7 @@ spec:
   template:
     metadata:
       labels:
-        app: uniprotkb
+        app: kb-rest
     spec:
       affinity:
         podAntiAffinity:
@@ -66,7 +65,7 @@ spec:
                   - key: "app"
                     operator: In
                     values:
-                      - uniprotkb
+                      - kb-rest
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: kubernetes-uniprotkb-rest
@@ -83,34 +82,32 @@ spec:
             - sh
             - -c
             - "start-restful.sh \
-          --voldemort=tcp://vd-0.vd-hs.default.svc.cluster.local:2186 \
-          --zkhost=zk-0.zk-hs.default.svc.cluster.local:2181,zk-1.zk-hs.default.svc.cluster.local:2181,zk-2.zk-hs.default.svc.cluster.local:2181 \
-          --log_level=INFO"
- #         readinessProbe:
- #           httpGet:
- #               path: /uniprot/api
- #              port: 8090
- #           initialDelaySeconds: 10
- #           timeoutSeconds: 5
- #         livenessProbe:
- #             httpGet:
- #               path: /uniprot/api
- #               port: 8090
- #             initialDelaySeconds: 10
- #             periodSeconds: 3
+                 --voldemort=tcp://vd-0.vd-hs.default.svc.cluster.local:2186 \
+                 --zkhost=zk-0.zk-hs.default.svc.cluster.local:2181,zk-1.zk-hs.default.svc.cluster.local:2181,zk-2.zk-hs.default.svc.cluster.local:2181 \
+                 --log_level=INFO"
+          readinessProbe:
+            tcpSocket:
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8090
+            initialDelaySeconds: 15
+            periodSeconds: 20
           volumeMounts:
-            - name: restdata
+            - name: kb-rest-data
               mountPath: /var/lib/restful
       securityContext:
         runAsUser: 1000
         fsGroup: 1000
   volumeClaimTemplates:
     - metadata:
-        name: restdata
+        name: kb-rest-data
       spec:
         storageClassName: nfs-client
         accessModes:
-          - ReadWriteMany
+          - ReadWriteOnce
         resources:
           requests:
             storage: 10Gi

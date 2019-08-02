@@ -74,6 +74,12 @@ spec:
                 configMapKeyRef:
                   name: solr-config
                   key: solrLogsDir
+          readinessProbe:
+            httpGet:
+              path: /solr/
+              port: 30080
+            initialDelaySeconds: 10
+            periodSeconds: 3
           livenessProbe:
             httpGet:
               path: /solr/

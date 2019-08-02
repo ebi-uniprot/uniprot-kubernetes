@@ -13,6 +13,7 @@ spec:
   clusterIP: None
   selector:
     app: zk
+
 ---
 apiVersion: v1
 kind: Service
@@ -27,6 +28,7 @@ spec:
   selector:
     app: zk
   type: NodePort
+
 ---
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
@@ -37,6 +39,7 @@ spec:
     matchLabels:
       app: zk
   maxUnavailable: 1
+
 ---
 apiVersion: apps/v1
 kind: StatefulSet

@@ -15,6 +15,7 @@ spec:
   clusterIP: None
   selector:
     app: vd
+
 ---
 apiVersion: v1
 kind: Service
@@ -40,6 +41,7 @@ spec:
   selector:
     app: vd
   type: NodePort
+
 ---
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
@@ -50,6 +52,7 @@ spec:
     matchLabels:
       app: vd
   maxUnavailable: 1
+
 ---
 apiVersion: apps/v1
 kind: StatefulSet
