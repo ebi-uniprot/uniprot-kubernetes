@@ -17,7 +17,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: minio
-  namespace: default
+  namespace: uniprot
 spec:
   selector:
     matchLabels:

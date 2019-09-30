@@ -3,9 +3,9 @@ kind: PersistentVolumeClaim
 metadata:
   name: minio-pv-claim
 spec:
-  storageClassName: nfs-client
+  storageClassName: standard
   accessModes:
     - ReadWriteMany
   resources:
     requests:
-      storage: 190Gi
+      storage: 700Gi

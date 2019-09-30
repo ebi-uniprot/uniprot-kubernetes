@@ -131,9 +131,9 @@ spec:
   - metadata:
       name: datadir
     spec:
-      storageClassName: nfs-client
+      storageClassName: standard
       accessModes:
       - ReadWriteOnce
       resources:
         requests:
-          storage: 10Gi
+          storage: 5Gi

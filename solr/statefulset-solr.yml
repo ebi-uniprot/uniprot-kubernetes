@@ -33,12 +33,17 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: solr
-          image: solr:latest
+          image: solr:8.2
+          resources:
+            limits:
+              memory: "16Gi"
+            requests:
+              memory: "8Gi"
           volumeMounts:
-            - name: volsolr
+            - name: datadir
               mountPath: /store
             - name: miniodata
-              mountPath: /store/minio
+              mountPath: /minio
           ports:
             - name: solr-port
               containerPort: 30080
@@ -48,6 +53,11 @@ spec:
                 configMapKeyRef:
                   name: solr-config
                   key: solrHome
+            - name: SOLR_JAVA_MEM
+              valueFrom:
+                configMapKeyRef:
+                  name: solr-config
+                  key: javaMemory
             - name: SOLR_DATA_HOME
               valueFrom:
                 configMapKeyRef:
@@ -68,7 +78,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: SOLR_HOST
-              value: "$(POD_HOST_NAME).solr-service-hs.default.svc.cluster.local"
+              value: "$(POD_HOST_NAME).solr-service-hs.uniprot.svc.cluster.local"
             - name: SOLR_LOGS_DIR
               valueFrom:
                 configMapKeyRef:
@@ -87,38 +97,38 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 3
       initContainers:
-        - name: init-solr-data2
+        - name: init-solr-data
           image: busybox
           command: ['sh', '-c', 'mkdir -p /store/solr_data && chown 8983:8983 /store/solr_data']
           volumeMounts:
-            - name: volsolr
+            - name: datadir
               mountPath: /store
-        - name: init-solr-data
+        - name: init-solr-home
           image: busybox
           command: ['sh', '-c', 'mkdir -p /store/solr_home && chown 8983:8983 /store/solr_home']
           volumeMounts:
-            - name: volsolr
+            - name: datadir
               mountPath: /store
         - name: init-solr-logs
           image: busybox
           command: ['sh', '-c', 'mkdir -p /store/logs && chown 8983:8983 /store/logs']
           volumeMounts:
-            - name: volsolr
+            - name: datadir
               mountPath: /store
         - name: init-solr-xml
-          image: solr:latest
+          image: solr:8.2
           command: ['sh', '-c', '[ ! -f /store/solr_home/solr.xml ] && cp /opt/solr/server/solr/solr.xml /store/solr_home/solr.xml || true']
           volumeMounts:
-            - name: volsolr
+            - name: datadir
               mountPath: /store
   volumeClaimTemplates:
     - metadata:
-        name: volsolr
+        name: datadir
       spec:
-        storageClassName: nfs-client
+        storageClassName: standard
         accessModes:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 10Gi
+            storage: 200Gi
         
