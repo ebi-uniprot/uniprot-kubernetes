@@ -63,7 +63,7 @@ spec:
     matchLabels:
       app: vd
   serviceName: vd-hs
-  replicas: 4
+  replicas: 6
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: OrderedReady
@@ -92,7 +92,7 @@ spec:
           image: "guoyingqi/voldemort"
           resources:
             requests:
-              memory: "5Gi"
+              memory: "8Gi"
               cpu: "0.5"
           ports:
             - containerPort: 2186
@@ -105,7 +105,8 @@ spec:
             - sh
             - -c
             - "start-voldemort.sh \
-               --servers=4 \
+               --servers=6 \
+               --partitions_per_node=6 \
                --log_level=INFO"
           readinessProbe:
             tcpSocket:
@@ -121,7 +122,7 @@ spec:
             - name: vddata
               mountPath: /var/lib/voldemort
             - name: miniodata
-              mountPath: /var/lib/voldemort/minio
+              mountPath: /minio
       securityContext:
         runAsUser: 1000
         fsGroup: 1000
@@ -129,9 +130,9 @@ spec:
     - metadata:
         name: vddata
       spec:
-        storageClassName: nfs-client
+        storageClassName: standard
         accessModes:
           - ReadWriteMany
         resources:
           requests:
-            storage: 30Gi
+            storage: 200Gi
