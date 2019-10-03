@@ -57,6 +57,10 @@ spec:
       labels:
         app: kb-rest
     spec:
+      volumes:
+        - name: miniodata
+          persistentVolumeClaim:
+            claimName: minio-pv-claim
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -73,8 +77,7 @@ spec:
           image: "guoyingqi/uniprotkb-rest"
           resources:
             requests:
-              memory: "5Gi"
-              cpu: "0.5"
+              memory: "16Gi"
           ports:
             - containerPort: 8090
               name: http
@@ -82,9 +85,13 @@ spec:
             - sh
             - -c
             - "start-restful.sh \
-                 --voldemort=tcp://vd-0.vd-hs.default.svc.cluster.local:2186 \
-                 --zkhost=zk-0.zk-hs.default.svc.cluster.local:2181,zk-1.zk-hs.default.svc.cluster.local:2181,zk-2.zk-hs.default.svc.cluster.local:2181 \
-                 --log_level=INFO"
+                 --heap=14G \
+                 --voldemort=tcp://vd-0.vd-hs.uniprot.svc.cluster.local:2186 \
+                 --zkhost=zk-0.zk-hs.uniprot.svc.cluster.local:2181,zk-1.zk-hs.uniprot.svc.cluster.local:2181,zk-2.zk-hs.uniprot.svc.cluster.local:2181 \
+                 --ec_dir=/minio/restful/ff/ec/ \
+                 --keyword_file=/minio/restful/ff/keywlist.txt \
+                 --pathway_file=/minio/restful/ff/unipathway.txt \
+                 --log_level=DEBUG"
           readinessProbe:
             tcpSocket:
               port: 8090
@@ -98,6 +105,8 @@ spec:
           volumeMounts:
             - name: kb-rest-data
               mountPath: /var/lib/restful
+            - name: miniodata
+              mountPath: /minio
       securityContext:
         runAsUser: 1000
         fsGroup: 1000
@@ -105,7 +114,7 @@ spec:
     - metadata:
         name: kb-rest-data
       spec:
-        storageClassName: nfs-client
+        storageClassName: standard
         accessModes:
           - ReadWriteOnce
         resources:

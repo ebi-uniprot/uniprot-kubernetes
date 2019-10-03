@@ -36,7 +36,7 @@ SPRING_DATA_SOLR_SOCKET_TIMEOUT=3600000
 
 INFO_APP_NAME="advanced-search-rest-service"
 INFO_APP_DESCRIPTION="Restful service for advanced search requests"
-INFO_APP_VERSION="0.0.1"
+INFO_APP_VERSION="1.0"
 
 SPRING_MVC_ASYNC_REQUEST_TIMEOUT=-1
 
@@ -55,6 +55,16 @@ DOWNLOAD_TASTEXECUTOR_KEEPALIVE_SECONDS=3600
 DOWNLOAD_TASTEXECUTOR_CORE_POOL_SIZW=20
 DOWNLOAD_TASTEXECUTOR_MAX_POOL_SIZE=20
 
+
+############################### Term properties ###############################
+TERMS_FIELDS="cc_catalytic_activity,lit_author,cc_disease,gene,go,keyword,family,name,strain,taxonomy_name,organism_name,tissue"
+
+############################### View-by service properties ###############################
+SOLR_VIEWBY_UNIPROT_COLLECTION=uniprot
+SOLR_VIEWBY_EC_DIR=""
+SOLR_VIEWBY_KEYWORD_FILE=""
+SOLR_VIEWBY_UNIPATHWAY_FILE=""
+
 function print_usage() {
 echo "\
 Usage: start-restful.sh [OPTIONS]
@@ -68,6 +78,12 @@ Starts a Restful server based on the supplied options.
     --voldemort                The Voldemort address.
 
     --zkhost                   The Zookeeper address.
+
+    --ec_dir                   EC file directory.
+
+    --keyword_file             Keyword file.
+
+    --pathway_file             Pathway file file.
 
     --heap                     The maximum amount of heap to use. The format is the
                                same as that used for the Xmx and Xms parameters to the
@@ -149,6 +165,13 @@ function creaate_application_properties() {
     echo "download.taskExecutor.corePoolSize=$DOWNLOAD_TASTEXECUTOR_CORE_POOL_SIZW" >> $APPLICATION_PROPERTIES_FILE
     echo "download.taskExecutor.maxPoolSize=$DOWNLOAD_TASTEXECUTOR_MAX_POOL_SIZE" >> $APPLICATION_PROPERTIES_FILE
 
+    echo "terms.fields=$TERMS_FIELDS" >> $APPLICATION_PROPERTIES_FILE
+
+    echo "solr.viewby.uniprotCollection=$SOLR_VIEWBY_UNIPROT_COLLECTION" >> $APPLICATION_PROPERTIES_FILE
+    echo "solr.viewby.ecDir=$SOLR_VIEWBY_EC_DIR" >> $APPLICATION_PROPERTIES_FILE
+    echo "solr.viewby.keywordFile=$SOLR_VIEWBY_KEYWORD_FILE" >> $APPLICATION_PROPERTIES_FILE
+    echo "solr.viewby.uniPathWayFile=$SOLR_VIEWBY_UNIPATHWAY_FILE" >> $APPLICATION_PROPERTIES_FILE
+
     ls -l $APPLICATION_PROPERTIES_FILE >&2
     cat $APPLICATION_PROPERTIES_FILE >&2
 }
@@ -184,6 +207,15 @@ while getopts "$optspec" optchar; do
                     ;;
                 voldemort=*)
                     VOLDEMORT_UNIPROT_HOST=${OPTARG##*=}
+                    ;;
+                ec_dir=*)
+                    SOLR_VIEWBY_EC_DIR=${OPTARG##*=}
+                    ;;
+                keyword_file=*)
+                    SOLR_VIEWBY_KEYWORD_FILE=${OPTARG##*=}
+                    ;;
+                pathway_file=*)
+                    SOLR_VIEWBY_UNIPATHWAY_FILE=${OPTARG##*=}
                     ;;
                 heap=*)
                     HEAP=${OPTARG##*=}
@@ -235,3 +267,4 @@ RUN_CMD="java \
 echo $RUN_CMD >&2
 
 exec $RUN_CMD >&2
+
