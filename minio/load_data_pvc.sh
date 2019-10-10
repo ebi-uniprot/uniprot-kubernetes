@@ -2,10 +2,12 @@
  
 bucket=$1
 file=$2
+host=$3
  
-# usage: ./minio-upload my-bucket my-file.zip
+# usage: ./minio-upload my-bucket my-file.zip host_with_port
  
-host="193.62.55.83:30099"
+# host="193.62.55.83:30099"
+
 minio_key=""
 minio_secret=""
  
