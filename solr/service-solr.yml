@@ -4,8 +4,8 @@ metadata:
   name: solr-service
 spec:
   ports:
-  - port: 30080
-    targetPort: 30080
+  - port: 8983
+    targetPort: 8983
     nodePort: 30080
     protocol: TCP
   selector:

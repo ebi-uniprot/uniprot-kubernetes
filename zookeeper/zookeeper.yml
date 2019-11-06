@@ -21,7 +21,7 @@ metadata:
   name: zk-cs
 spec:
   ports:
-    - port: 30181
+    - port: 2181
       targetPort: 2181
       nodePort: 30181
       protocol: TCP
@@ -42,6 +42,7 @@ spec:
 
 ---
 apiVersion: apps/v1
+# https://github.com/freedev/solrcloud-zookeeper-kubernetes
 kind: StatefulSet
 metadata:
   name: zk
@@ -50,7 +51,7 @@ spec:
     matchLabels:
       app: zk
   serviceName: zk-hs
-  replicas: 3
+  replicas: 3 # to match the number of servers in containers start-zookeeper command
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: OrderedReady
@@ -70,8 +71,9 @@ spec:
                     - zk
               topologyKey: "kubernetes.io/hostname"
       containers:
-      - name: kubernetes-zookeeper
+      - name: zookeeper
         imagePullPolicy: Always
+        # https://github.com/kow3ns/kubernetes-zookeeper
         image: "k8s.gcr.io/kubernetes-zookeeper:1.0-3.4.10"
         resources:
           requests:
@@ -122,16 +124,17 @@ spec:
           initialDelaySeconds: 10
           timeoutSeconds: 5
         volumeMounts:
-        - name: datadir
+        - name: zk-data
           mountPath: /var/lib/zookeeper
+      # within docker, a user zookeeper being created with 1000 as the user id and group id
       securityContext:
         runAsUser: 1000
         fsGroup: 1000
   volumeClaimTemplates:
   - metadata:
-      name: datadir
+      name: zk-data
     spec:
-      storageClassName: standard
+      storageClassName: local-storage
       accessModes:
       - ReadWriteOnce
       resources:

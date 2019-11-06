@@ -6,7 +6,8 @@ metadata:
     app: solr-app
 spec:
   ports:
-  - port: 30080
+  - port: 8983
+    targetPort: 8983
   clusterIP: None
   selector:
     app: solr-app

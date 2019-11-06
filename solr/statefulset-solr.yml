@@ -17,10 +17,12 @@ spec:
         app: solr-app # has to match .spec.selector.matchLabels
     spec:
       volumes:
-        - name: miniodata
-          persistentVolumeClaim:
-            claimName: minio-pv-claim
+        - name: nfs-share-volume-uniprot
+          nfs:
+            server: hx-isi-srv-vlan157.ebi.ac.uk
+            path: /ifs/public-r/rw/uniprot
       terminationGracePeriodSeconds: 60
+      restartPolicy: Always
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -32,6 +34,8 @@ spec:
                       - solr-app
               topologyKey: "kubernetes.io/hostname"
       containers:
+        # https://hub.docker.com/_/solr
+        # https://github.com/docker-solr/docker-solr
         - name: solr
           image: solr:8.2
           resources:
@@ -40,24 +44,31 @@ spec:
             requests:
               memory: "16Gi"
           volumeMounts:
-            - name: datadir
+            - name: solr-data
               mountPath: /store
-            - name: miniodata
-              mountPath: /minio
+            - name: nfs-share-volume-uniprot
+              mountPath: /nfs-share-uniprot
           ports:
             - name: solr-port
-              containerPort: 30080
+              containerPort: 8983
           env:
+            - name: POD_HOST_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: SOLR_HOME
               valueFrom:
                 configMapKeyRef:
                   name: solr-config
                   key: solrHome
-            - name: SOLR_JAVA_MEM
-              valueFrom:
-                configMapKeyRef:
-                  name: solr-config
-                  key: javaMemory
             - name: SOLR_DATA_HOME
               valueFrom:
                 configMapKeyRef:
@@ -73,62 +84,100 @@ spec:
                 configMapKeyRef:
                   name: solr-config
                   key: zkHost
-            - name: POD_HOST_NAME
+            - name: SOLR_JAVA_MEM
               valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
+                configMapKeyRef:
+                  name: solr-config
+                  key: javaMemory
             - name: SOLR_HOST
-              value: "$(POD_HOST_NAME).solr-service-hs.uniprot.svc.cluster.local"
+              value: "$(POD_HOST_NAME).solr-service-hs.$(POD_NAMESPACE).svc.cluster.local"
             - name: SOLR_LOGS_DIR
               valueFrom:
                 configMapKeyRef:
                   name: solr-config
                   key: solrLogsDir
           readinessProbe:
-            httpGet:
-              path: /solr/
-              port: 30080
-            initialDelaySeconds: 10
-            periodSeconds: 3
+            tcpSocket:
+              port: 8983
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
-            httpGet:
-              path: /solr/
-              port: 30080
-            initialDelaySeconds: 10
-            periodSeconds: 3
+            tcpSocket:
+              port: 8983
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 30
       initContainers:
         - name: init-solr-data
           image: busybox
-          command: ['sh', '-c', 'mkdir -p /store/solr_data && chown 8983:8983 /store/solr_data']
+          command:
+          - "/bin/sh"
+          - "-c"
+          - "if [ ! -d $SOLR_DATA_HOME ] ; then mkdir -p $SOLR_DATA_HOME && chown -R 8983:8983 $SOLR_DATA_HOME ; else true; fi"
+          env:
+              - name: SOLR_DATA_HOME
+                valueFrom:
+                  configMapKeyRef:
+                    name: solr-config
+                    key: solrData
           volumeMounts:
-            - name: datadir
+            - name: solr-data
               mountPath: /store
         - name: init-solr-home
           image: busybox
-          command: ['sh', '-c', 'mkdir -p /store/solr_home && chown 8983:8983 /store/solr_home']
+          command:
+          - "/bin/sh"
+          - "-c"
+          - "if [ ! -d $SOLR_HOME ] ; then mkdir -p $SOLR_HOME && chown -R 8983:8983 $SOLR_HOME ; else true; fi"
+          env:
+              - name: SOLR_HOME
+                valueFrom:
+                  configMapKeyRef:
+                    name: solr-config
+                    key: solrHome
           volumeMounts:
-            - name: datadir
+            - name: solr-data
               mountPath: /store
         - name: init-solr-logs
           image: busybox
-          command: ['sh', '-c', 'mkdir -p /store/logs && chown 8983:8983 /store/logs']
+          command:
+          - "/bin/sh"
+          - "-c"
+          - "if [ ! -d $SOLR_LOGS_DIR ] ; then mkdir -p $SOLR_LOGS_DIR && chown 8983:8983 $SOLR_LOGS_DIR ; else true; fi"
+          env:
+              - name: SOLR_LOGS_DIR
+                valueFrom:
+                  configMapKeyRef:
+                    name: solr-config
+                    key: solrLogsDir
           volumeMounts:
-            - name: datadir
+            - name: solr-data
               mountPath: /store
         - name: init-solr-xml
           image: solr:8.2
-          command: ['sh', '-c', '[ ! -f /store/solr_home/solr.xml ] && cp /opt/solr/server/solr/solr.xml /store/solr_home/solr.xml || true']
+          command:
+          - "/bin/sh"
+          - "-c"
+          - "if [ ! -f $SOLR_HOME/solr.xml ] ; then cp /opt/solr/server/solr/solr.xml $SOLR_HOME/solr.xml;\
+                         sed -i \"s/<solr>/<solr><str name='sharedLib'>\\/store\\/solr_home<\\/str>/g\" $SOLR_HOME/solr.xml ; else true; fi "
+          env:
+            - name: SOLR_HOME
+              valueFrom:
+                configMapKeyRef:
+                  name: solr-config
+                  key: solrHome
           volumeMounts:
-            - name: datadir
+            - name: solr-data
               mountPath: /store
   volumeClaimTemplates:
     - metadata:
-        name: datadir
+        name: solr-data
       spec:
-        storageClassName: standard
+        storageClassName: local-storage
         accessModes:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 200Gi
+            storage: 300Gi
         
