@@ -4,7 +4,10 @@ ARG VOLDEMORT_DIST=release-1.10.26-cutoff
 ARG VOLDEMORT_DIST_DIR=voldemort-$VOLDEMORT_DIST
 
 ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 \
-    VOLDEMORT_USER=voldemort
+    VOLDEMORT_USER=voldemort \
+    VOLDEMORT_GROUP=voldemort \
+    VOLDEMORT_UID=2796 \
+    VOLDEMORT_GID=1128
 
 # update the system, install wget and JDK, download Voldemort and build it, uninstall jdk and install JRE
 RUN set -x \
@@ -34,9 +37,8 @@ COPY scripts /opt/voldemort/bin/
 # for nessecary directories and symlink the distribution as a user executable
 # Note: changing the ownership of the files will increase the image size
 RUN set -x \
-	&& useradd $VOLDEMORT_USER \
-    && [ `id -u $VOLDEMORT_USER` -eq 1000 ] \
-    && [ `id -g $VOLDEMORT_USER` -eq 1000 ] \
+    && groupadd -r --gid "$VOLDEMORT_GID" "$VOLDEMORT_GROUP" \
+    && useradd -r --uid "$VOLDEMORT_UID" --gid "$VOLDEMORT_GID" "$VOLDEMORT_USER" \
     && mkdir -p /tmp/voldemort /home/voldemort \
-    && chown -R "$VOLDEMORT_USER:$VOLDEMORT_USER" /opt/$VOLDEMORT_DIST_DIR/bin /tmp/voldemort /home/voldemort \
+    && chown -R "$VOLDEMORT_USER:$VOLDEMORT_GROUP" /opt/$VOLDEMORT_DIST_DIR/bin /tmp/voldemort /home/voldemort \
     && ln -s /opt/voldemort/bin/* /usr/bin

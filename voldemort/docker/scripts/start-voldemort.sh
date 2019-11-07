@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-#Usage: start-voldemort.sh [OPTIONS]
+# Usage: start-voldemort.sh [OPTIONS]
 # Starts a Voldemort server based on the supplied options.
+
+# set -x
 
 USER=`whoami`
 HOST=`hostname -s`
@@ -10,12 +12,13 @@ DOMAIN=`hostname -d`
 echo "User: $USER, Host: $HOST, Domain: $DOMAIN"
 
 # default valures for config files
-SERVERS=4
+SERVERS=6
 NODE_DIR="/var/lib/voldemort"
+
 SOCKET_PORT=2186
 ADMIN_PORT=2187
 HTTP_PORT=2185
-PARTITIONS_PER_NODE=4
+PARTITIONS_PER_NODE=$SERVERS
 MAX_THREADS=100
 HTTP_ENABLE=true
 SOCKET_ENABLE=true
@@ -45,7 +48,7 @@ echo "\
 Usage: start-voldemort.sh [OPTIONS]
 Starts a Voldemort server based on the supplied options.
     --servers                  The number of servers in the ensemble.
-                               The default value is 4.
+                               The default value is 6.
 
     --node_dir                 The directory where the Voldemort will store its data and config files.
                                The default is /var/lib/voldemort.
@@ -56,7 +59,7 @@ Starts a Voldemort server based on the supplied options.
 
     --http.port                The http port, default 2185.
 
-    --partitions_per_node      The number of partitions on each node, default 4.
+    --partitions_per_node      The number of partitions on each node, default as the number of servers.
 
     --max_threads              The max of threads, default 100.
 
@@ -106,7 +109,8 @@ function create_data_dirs() {
         chown -R $USER:$USER $DATA_DIR
     fi
     if [ ! -d $CONF_DIR  ]; then
-        mkdir -p $CONF_DIR
+        rm -rf $CONF_DIR
+        mkdir $CONF_DIR
         chown -R $USER:$USER $CONF_DIR
     fi
     if [ ! -d $STORE_DIR  ]; then
@@ -219,18 +223,23 @@ function create_log_props() {
 
     echo "Creating Voldemort log4j configuration: $LOGGER_PROPS_FILE" >&2
 
-    echo "voldemort.root.logger=CONSOLE" >> $LOGGER_PROPS_FILE
-    echo "voldemort.console.threshold=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.rootLogger=$LOG_LEVEL, stdout" >> $LOGGER_PROPS_FILE
 
-    echo "log4j.rootLogger=\${voldemort.root.logger}" >> $LOGGER_PROPS_FILE
-    echo "log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender" >> $LOGGER_PROPS_FILE
-    echo "log4j.appender.CONSOLE.Threshold=\${voldemort.console.threshold}" >> $LOGGER_PROPS_FILE
-    echo "log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout" >> $LOGGER_PROPS_FILE
-    echo "log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n" >> $LOGGER_PROPS_FILE
+    echo "log4j.appender.stdout=org.apache.log4j.ConsoleAppender" >> $LOGGER_PROPS_FILE
+    echo "log4j.appender.stdout.layout=org.apache.log4j.PatternLayout" >> $LOGGER_PROPS_FILE
+    echo "log4j.appender.stdout.layout.ConversionPattern=[%d{ABSOLUTE} %c] %p %m [%t]%n" >> $LOGGER_PROPS_FILE
 
-    echo "log4j.logger.voldemort=\${voldemort.console.threshold}" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.httpclient.wire=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.org.mortbay.log=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.voldemort.server=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.voldemort.store.routed=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.voldemort.server.niosocket=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.voldemort.utils=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.voldemort.client.rebalance=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.voldemort.server=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.voldemort.routing=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
+    echo "log4j.logger.voldemort.store.stats=$LOG_LEVEL" >> $LOGGER_PROPS_FILE
     echo "log4j.logger.krati=WARN" >> $LOGGER_PROPS_FILE
-    echo "log4j.logger.org.mortbay.log=WARN" >> $LOGGER_PROPS_FILE
 
     cat $LOGGER_PROPS_FILE >&2
 }
@@ -324,17 +333,6 @@ while getopts "$optspec" optchar; do
     esac
 done
 
-
-DATA_DIR="$NODE_DIR/data"
-CONF_DIR="$NODE_DIR/config"
-SERVER_PROPERTIES="$CONF_DIR/server.properties"
-CLUSTER_XML="$CONF_DIR/cluster.xml"
-LOGGER_PROPS_FILE="$CONF_DIR/log4j.properties"
-STORE_DIR="$CONF_DIR/STORES"
-STORE_FILE="$STORE_DIR/$STORE_NAME"
-
-LOG_FILE="${NODE_DIR}/${HOST}.log"
-
 if [[ $HOST =~ (.*)-([0-9]+)$ ]]; then
     NAME=${BASH_REMATCH[1]}
     ORD=${BASH_REMATCH[2]}
@@ -345,9 +343,48 @@ fi
 
 MY_ID=$((ORD+0))
 
-create_data_dirs && create_server_properties && create_cluster_xml && create_store_file && create_log_props
-ls -l /var/lib/voldemort >&2
-ls -l /var/lib/voldemort/config >&2
+NODE_DIR=$NODE_DIR/node_${MY_ID}
 
-export ENV VOLD_OPTS="-Xmx$HEAP -Xms$HEAP -server -Dcom.sun.management.jmxremote"
-exec /opt/voldemort/bin/voldemort-server.sh $NODE_DIR > $LOG_FILE 2>&1
+DATA_DIR="$NODE_DIR/data"
+CONF_DIR="$NODE_DIR/config"
+SERVER_PROPERTIES="$CONF_DIR/server.properties"
+CLUSTER_XML="$CONF_DIR/cluster.xml"
+LOGGER_PROPS_FILE="$CONF_DIR/log4j.properties"
+STORE_DIR="$CONF_DIR/STORES"
+STORE_FILE="$STORE_DIR/$STORE_NAME"
+
+LOG_FILE="${NODE_DIR}/node_${MY_ID}.log"
+
+create_data_dirs && create_server_properties && create_cluster_xml && create_store_file && create_log_props
+ls -l $DAT_DIR >&2
+ls -l $CONF_DIR >&2
+
+MAINCLASS="voldemort.server.VoldemortServer"
+
+JMX_OPTIONS="-Dcom.sun.management.jmxremote"
+JMX_OPTIONS="$JMX_OPTIONS -Dcom.sun.management.jmxremote.authenticate=false"
+JMX_OPTIONS="$JMX_OPTIONS -Dcom.sun.management.jmxremote.ssl=false"
+JMX_OPTIONS="$JMX_OPTIONS -Dcom.sun.management.jmxremote.port=9990"
+
+VOLD_OPTS="-Xmx$HEAP -Xms$HEAP -server"
+
+VOLDEMORT_DIST_DIR="/opt/voldemort"
+
+for file in ${VOLDEMORT_DIST_DIR}/dist/*.jar;
+do
+  CLASSPATH=$CLASSPATH:$file
+done
+
+for file in ${VOLDEMORT_DIST_DIR}/lib/*.jar;
+do
+  CLASSPATH=$CLASSPATH:$file
+done
+
+for file in ${VOLDEMORT_DIST_DIR}/contrib/*/lib/*.jar;
+do
+  CLASSPATH=$CLASSPATH:$file
+done
+
+CLASSPATH=$CLASSPATH:${VOLDEMORT_DIST_DIR}/dist/resources
+
+exec java -Dlog4j.configuration=file://${LOGGER_PROPS_FILE} $VOLD_OPTS -cp $CLASSPATH voldemort.server.VoldemortServer $NODE_DIR >> $LOG_FILE 2>&1

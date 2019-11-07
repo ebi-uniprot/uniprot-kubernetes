@@ -23,17 +23,17 @@ metadata:
   name: vd-cs
 spec:
   ports:
-    - port: 30186
+    - port: 2186
       targetPort: 2186
       nodePort: 30186
       protocol: TCP
       name: socket
-    - port: 30187
+    - port: 2187
       targetPort: 2187
       nodePort: 30187
       protocol: TCP
       name: admin
-    - port: 30185
+    - port: 2185
       targetPort: 2185
       nodePort: 30185
       protocol: TCP
@@ -63,7 +63,7 @@ spec:
     matchLabels:
       app: vd
   serviceName: vd-hs
-  replicas: 6
+  replicas: 6 # should be the same as the number of servers for the start-voldemort scrsipts
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: OrderedReady
@@ -73,9 +73,10 @@ spec:
         app: vd
     spec:
       volumes:
-        - name: miniodata
-          persistentVolumeClaim:
-            claimName: minio-pv-claim
+        - name: nfs-share-volume-uniprot-vd
+          nfs:
+            server: hx-isi-srv-vlan157.ebi.ac.uk
+            path: /ifs/public-r/rw/uniprot/voldemort_cloud/cloud1
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -87,12 +88,12 @@ spec:
                       - vd
               topologyKey: "kubernetes.io/hostname"
       containers:
-        - name: kubernetes-voldemort
+        - name: voldemort
           imagePullPolicy: Always
           image: "guoyingqi/voldemort"
           resources:
             requests:
-              memory: "8Gi"
+              memory: "4Gi"
               cpu: "0.5"
           ports:
             - containerPort: 2186
@@ -101,7 +102,7 @@ spec:
               name: http
             - containerPort: 2187
               name: admin
-          command:
+          command: # both the numbers of nodes and the number of partitions per node should be the same as the number of replicates
             - sh
             - -c
             - "start-voldemort.sh \
@@ -119,20 +120,9 @@ spec:
               initialDelaySeconds: 15
               periodSeconds: 20
           volumeMounts:
-            - name: vddata
+            - name: nfs-share-volume-uniprot-vd
               mountPath: /var/lib/voldemort
-            - name: miniodata
-              mountPath: /minio
       securityContext:
-        runAsUser: 1000
-        fsGroup: 1000
-  volumeClaimTemplates:
-    - metadata:
-        name: vddata
-      spec:
-        storageClassName: standard
-        accessModes:
-          - ReadWriteMany
-        resources:
-          requests:
-            storage: 200Gi
+        runAsUser: 2796
+        fsGroup: 1128
+
