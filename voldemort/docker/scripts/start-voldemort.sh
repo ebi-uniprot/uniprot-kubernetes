@@ -100,23 +100,23 @@ Starts a Voldemort server based on the supplied options.
 function create_data_dirs() {
     echo "Create Voldemort data and config directories." >&2
 
-    if [ ! -d $NODE_DIR_DIR  ]; then
+    if [ ! -d $NODE_DIR  ]; then
         mkdir -p $NODE_DIR
         chown -R $USER:$USER $NODE_DIR
     fi
+
     if [ ! -d $DATA_DIR ]; then
         mkdir -p $DATA_DIR
         chown -R $USER:$USER $DATA_DIR
     fi
-    if [ ! -d $CONF_DIR  ]; then
-        rm -rf $CONF_DIR
-        mkdir $CONF_DIR
-        chown -R $USER:$USER $CONF_DIR
-    fi
-    if [ ! -d $STORE_DIR  ]; then
-        mkdir -p $STORE_DIR
-        chown -R $USER:$USER $STORE_DIR
-    fi
+
+    rm -rf $CONF_DIR
+    mkdir -p $CONF_DIR
+    chown -R $USER:$USER $CONF_DIR
+
+    rm -rf $STORE_DIR
+    mkdir -p $STORE_DIR
+    chown -R $USER:$USER $STORE_DIR
 }
 
 function create_cluster_xml() {
