@@ -19,12 +19,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: zk-cs
+  labels:
+    app: zk
 spec:
   ports:
     - port: 2181
       targetPort: 2181
       nodePort: 30181
       protocol: TCP
+      name: client
   selector:
     app: zk
   type: NodePort
@@ -107,6 +110,7 @@ spec:
           --max_session_timeout=40000 \
           --min_session_timeout=4000 \
           --log_level=INFO"
+        # the number of server should match the number of replicates
         readinessProbe:
           exec:
             command:
