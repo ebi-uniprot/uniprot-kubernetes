@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: zk-hs
   labels:
-    app: zk
+    app: zk-app
 spec:
   ports:
   - port: 2888
@@ -12,7 +12,7 @@ spec:
     name: leader-election
   clusterIP: None
   selector:
-    app: zk
+    app: zk-app
 
 ---
 apiVersion: v1
@@ -20,7 +20,7 @@ kind: Service
 metadata:
   name: zk-cs
   labels:
-    app: zk
+    app: zk-app
 spec:
   ports:
     - port: 2181
@@ -29,7 +29,7 @@ spec:
       protocol: TCP
       name: client
   selector:
-    app: zk
+    app: zk-app
   type: NodePort
 
 ---
@@ -40,7 +40,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: zk
+      app: zk-app
   maxUnavailable: 1
 
 ---
@@ -52,7 +52,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: zk
+      app: zk-app
   serviceName: zk-hs
   replicas: 3 # to match the number of servers in containers start-zookeeper command
   updateStrategy:
@@ -61,7 +61,7 @@ spec:
   template:
     metadata:
       labels:
-        app: zk
+        app: zk-app
     spec:
       affinity:
         podAntiAffinity:
@@ -71,7 +71,7 @@ spec:
                   - key: "app"
                     operator: In
                     values:
-                    - zk
+                    - zk-app
               topologyKey: "kubernetes.io/hostname"
       containers:
       - name: zookeeper
